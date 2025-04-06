@@ -2,3 +2,4 @@
 /cmake-build-debug/
 /write up.txt
 /.idea/
+__pycache__/
