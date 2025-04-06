@@ -1,31 +1,43 @@
+import os
 import time
 import subprocess
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
-from pathlib import Path
 
+PPM_FILE = "image.ppm"
 
-class PPMChangeHandler(FileSystemEventHandler):
-    def __init__(self, file_to_watch, command_to_run):
-        self.file_to_watch = Path(file_to_watch).resolve()
-        self.command_to_run = command_to_run
-
+class PPMHandler(FileSystemEventHandler):
     def on_modified(self, event):
-        if Path(event.src_path).resolve() == self.file_to_watch:
-            print(f"{self.file_to_watch.name} updated. Running viewer...")
-            subprocess.run(self.command_to_run)
+        if event.src_path.endswith(PPM_FILE):
+            print(f"{PPM_FILE} updated. Waiting for stability...")
+            if self.wait_for_stable_file(PPM_FILE):
+                print("Running viewer...")
+                subprocess.run(["python", "viewer.py"])
+            else:
+                print("File not stable. Skipping this run.")
 
+    def wait_for_stable_file(self, path, timeout=2, interval=0.2):
+        """Wait until file size is stable for a given duration"""
+        start_time = time.time()
+        last_size = -1
+        while time.time() - start_time < timeout:
+            try:
+                current_size = os.path.getsize(path)
+                if current_size == last_size:
+                    return True
+                last_size = current_size
+                time.sleep(interval)
+            except FileNotFoundError:
+                return False
+        return False
 
 if __name__ == "__main__":
-    ppm_file = "image.ppm"
-    cmd = ["python", "viewer.py"]
-
-    event_handler = PPMChangeHandler(ppm_file, cmd)
+    path = "."
+    event_handler = PPMHandler()
     observer = Observer()
-    observer.schedule(event_handler, path=".", recursive=False)
-
-    print(f"Watching {ppm_file} for changes...")
+    observer.schedule(event_handler, path, recursive=False)
     observer.start()
+    print(f"Watching for changes to {PPM_FILE}...")
 
     try:
         while True:
