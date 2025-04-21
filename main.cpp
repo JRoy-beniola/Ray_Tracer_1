@@ -1,12 +1,10 @@
-#include <iostream>
+#include "common.h"
 
-#include "vec3.h"
-#include "color.h"
-#include "ray.h"
+#include "hittable.h"
+#include "hittable_list.h"
+#include "sphere.h"
 
-
-color ray_color(const ray&);
-double sphere_hit(const point3&, double, const ray&);
+color ray_color(const ray&, const hittable&);
 
 
 int main()
@@ -42,6 +40,12 @@ int main()
     auto first_pixel_loc = extreme_upper_left + 0.5 * (delta_u + delta_v);
 
 
+    // Creating our world
+    hittable_list world;
+    world.add(make_shared<sphere>(point3(0,0,-1), 0.5));
+    world.add(make_shared<sphere>(point3(0,-100.5,-1), 100));
+
+
     // Rendering shenanigans
 
     std::cout << "P3\n" << image_width << " " << image_height << "\n255\n";
@@ -58,7 +62,7 @@ int main()
 
             ray r(camera_centre, ray_direction);
 
-            color pixel_color = ray_color(r);
+            color pixel_color = ray_color(r, world);
 
             write_color(std::cout, pixel_color);
         }
@@ -69,34 +73,16 @@ int main()
 }
 
 
-color ray_color(const ray& r)
+color ray_color(const ray& r, const hittable& world)
 {
-    auto t = sphere_hit(point3(0, 0, -1), 0.5, r);
-    if (t > 0)
+    hit_record rec;
+
+    if (world.hit(r, interval(0, infinity), rec))
     {
-        auto normal = unit_vector(r.at(t) - vec3(0, 0, -1));
-        return color(0.5 * vec3(normal.x() + 1, normal.y() + 1, normal.z() + 1));
+        return 0.5 * color(rec.normal + color(1, 1, 1));
     }
 
     vec3 unit_direction = unit_vector(r.direction());
     auto alpha = 0.5 * (unit_direction.y() + 1.0);
     return (1 - alpha)*color(1.0, 1.0, 1.0) + alpha*color(0.5, 0.7, 1.0);
-}
-
-double sphere_hit(const point3& center, double radius, const ray& r)
-{
-    vec3 oc = r.origin() - center;
-    auto a = r.direction().length_squared();
-    auto h = dot(oc, r.direction());
-    auto c = oc.length_squared() - radius * radius;
-
-
-    auto discriminant = h*h - a*c;
-
-    if (discriminant < 0)
-    {
-        return -1;
-    }
-
-    return (-h - sqrt(discriminant))/a;
 }
