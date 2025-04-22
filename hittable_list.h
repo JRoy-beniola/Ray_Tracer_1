@@ -39,6 +39,10 @@ class hittable_list : public hittable
 
             return hit_anything;
         }
+
+
 };
+
+
 
 #endif
